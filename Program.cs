@@ -98,9 +98,9 @@ namespace SystemControlTool
                 var currentExe = Assembly.GetEntryAssembly().Location;
                 var currentDir = Path.GetDirectoryName(currentExe);
 
-                // Lấy tên file gốc từ download URL
+                // Lưu tạm với tên khác để tránh conflict với file đang chạy
                 var downloadFileName = Path.GetFileName(new Uri(downloadUrl).LocalPath);
-                var tempFile = Path.Combine(currentDir, downloadFileName);
+                var tempFile = Path.Combine(currentDir, "_temp_" + downloadFileName);
 
                 try { File.WriteAllBytes(tempFile, data); }
                 catch (Exception ex)
@@ -114,7 +114,8 @@ namespace SystemControlTool
                 var batContent = $@"@echo off
 timeout /t 2 /nobreak >nul
 del /f /q ""{currentExe}""
-start """" ""{tempFile}""
+rename ""{tempFile}"" ""{downloadFileName}""
+start """" ""{Path.Combine(currentDir, downloadFileName)}""
 del ""%~f0""
 ";
                 try { File.WriteAllText(batPath, batContent, Encoding.Default); }

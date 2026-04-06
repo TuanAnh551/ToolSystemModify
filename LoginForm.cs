@@ -74,6 +74,20 @@ namespace SystemControlTool
             this.Controls.Add(lblPassword);
             this.Controls.Add(txtPassword);
             this.Controls.Add(btnLogin);
+
+            // Lấy version hiện tại
+            var version = System.Reflection.Assembly.GetEntryAssembly().GetName().Version;
+
+            Label lblVersion = new Label()
+            {
+                Text = $"v{version.Major}.{version.Minor}.{version.Build}.{version.Revision}",
+                Font = new Font("Segoe UI", 8),
+                ForeColor = Color.Gray,
+                AutoSize = true,
+                Location = new Point(125, 48) // nằm dưới dòng title
+            };
+
+            this.Controls.Add(lblVersion);
         }
 
         void TryLogin()
