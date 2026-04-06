@@ -1,0 +1,24 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+	<PropertyGroup>
+		<OutputType>WinExe</OutputType>
+		<TargetFramework>net48</TargetFramework>
+		<UseWindowsForms>true</UseWindowsForms>
+		<AssemblyName>ToolSystemModify</AssemblyName>
+		<RootNamespace>SystemControlTool</RootNamespace>
+		<AssemblyVersion>1.0.0.0</AssemblyVersion>
+		<FileVersion>1.0.0.0</FileVersion>
+		<Nullable>disable</Nullable>
+		<ApplicationIcon>d81172d839c25e72d46592a8b11edb9b_2217992959782579008.ico</ApplicationIcon>
+	</PropertyGroup>
+
+	<ItemGroup>
+	  <Content Include="d81172d839c25e72d46592a8b11edb9b_2217992959782579008.ico" />
+	</ItemGroup>
+
+	<ItemGroup>
+		<Reference Include="System.Management" />
+		<Reference Include="System.Net.Http" />
+	</ItemGroup>
+
+</Project>
