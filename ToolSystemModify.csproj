@@ -6,10 +6,10 @@
 		<UseWindowsForms>true</UseWindowsForms>
 		<AssemblyName>ToolSystemModify</AssemblyName>
 		<RootNamespace>SystemControlTool</RootNamespace>
-		<AssemblyVersion>1.0.0.1</AssemblyVersion>
-		<FileVersion>1.0.0.1</FileVersion>
-		<Product>ToolSystemModify v1.0.0.1</Product>
-		<Description>ToolSystemModify v1.0.0.1</Description>
+		<AssemblyVersion>1.0.0.2</AssemblyVersion>
+		<FileVersion>1.0.0.2</FileVersion>
+		<Product>ToolSystemModify v1.0.0.2</Product>
+		<Description>ToolSystemModify v1.0.0.2</Description>
 		<Nullable>disable</Nullable>
 		<ApplicationIcon>d81172d839c25e72d46592a8b11edb9b_2217992959782579008.ico</ApplicationIcon>
 	</PropertyGroup>

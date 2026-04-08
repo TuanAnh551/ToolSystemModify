@@ -14,8 +14,15 @@ namespace SystemControlTool
 
         [DllImport("user32.dll")]
         public static extern int SendMessageTimeout(
-            IntPtr hWnd, int Msg, IntPtr wParam, string lParam,
-            SendMessageTimeoutFlags flags, int timeout, out IntPtr lpdwResult);
+    IntPtr hWnd, int Msg, IntPtr wParam, string lParam,
+    SendMessageTimeoutFlags flags, int timeout, out IntPtr lpdwResult);
+
+        [DllImport("user32.dll", CharSet = CharSet.Auto)]
+        static extern int SystemParametersInfo(int uAction, int uParam, string lpvParam, int fuWinIni);
+
+        private const int SPI_SETDESKWALLPAPER = 20;
+        private const int SPIF_UPDATEINIFILE = 0x01;
+        private const int SPIF_SENDCHANGE = 0x02;
 
         public enum SendMessageTimeoutFlags : uint
         {
@@ -248,7 +255,7 @@ namespace SystemControlTool
 
         void LoadStatus()
         {
-            bool regDisabled      = GetPolicy(@"Software\Microsoft\Windows\CurrentVersion\Policies\System", "DisableRegistryTools") == 1;
+            bool regDisabled = IsRegistryDisabled();
             bool taskDisabled     = GetPolicy(@"Software\Microsoft\Windows\CurrentVersion\Policies\System", "DisableTaskMgr") == 1;
             bool cmdDisabled      = GetPolicy(@"Software\Policies\Microsoft\Windows\System", "DisableCMD") == 1;
             bool wallpaperLocked  = GetPolicy(@"Software\Microsoft\Windows\CurrentVersion\Policies\ActiveDesktop", "NoChangingWallPaper") == 1;
@@ -310,7 +317,20 @@ namespace SystemControlTool
 
         bool IsRegistryDisabled()
         {
-            return GetPolicy(@"Software\Microsoft\Windows\CurrentVersion\Policies\System", "DisableRegistryTools") == 1;
+            // Check HKCU
+            if (GetPolicy(@"Software\Microsoft\Windows\CurrentVersion\Policies\System", "DisableRegistryTools") == 1)
+                return true;
+
+            // Check HKLM
+            RegistryKey hklm = Registry.LocalMachine.OpenSubKey(@"Software\Microsoft\Windows\CurrentVersion\Policies\System");
+            if (hklm != null)
+            {
+                object val = hklm.GetValue("DisableRegistryTools");
+                if (val != null && (int)val == 1)
+                    return true;
+            }
+
+            return false;
         }
 
         // ── Task Manager ─────────────────────────────────────────────
@@ -350,21 +370,36 @@ namespace SystemControlTool
         // ── Wallpaper ────────────────────────────────────────────────
         private void btnLockWallpaper_Click(object sender, EventArgs e)
         {
-            if (IsRegistryDisabled()) { Notify("Registry đang bị khóa. Không thể thay đổi chức năng khác."); return; }
+            if (IsRegistryDisabled()) { Notify("Registry đang bị khóa."); return; }
+
             SetPolicy(@"Software\Microsoft\Windows\CurrentVersion\Policies\ActiveDesktop", "NoChangingWallPaper", 1);
             SetPolicy(@"Software\Microsoft\Windows\CurrentVersion\Policies\Explorer", "NoSetWallpaper", 1);
+            SetPolicy(@"Software\Microsoft\Windows\CurrentVersion\Policies\System", "NoDispBackgroundPage", 1);
+
+            // Notify Windows apply ngay không cần restart Explorer
+            SystemParametersInfo(SPI_SETDESKWALLPAPER, 0, null, SPIF_UPDATEINIFILE | SPIF_SENDCHANGE);
+            RefreshPolicy();
+
             Notify("Change wallpaper has been locked");
             LoadStatus();
         }
 
         private void btnUnlockWallpaper_Click(object sender, EventArgs e)
         {
-            if (IsRegistryDisabled()) { Notify("Registry đang bị khóa. Không thể thay đổi chức năng khác."); return; }
+            if (IsRegistryDisabled()) { Notify("Registry đang bị khóa."); return; }
+
             SetPolicy(@"Software\Microsoft\Windows\CurrentVersion\Policies\ActiveDesktop", "NoChangingWallPaper", 0);
             SetPolicy(@"Software\Microsoft\Windows\CurrentVersion\Policies\Explorer", "NoSetWallpaper", 0);
+            SetPolicy(@"Software\Microsoft\Windows\CurrentVersion\Policies\System", "NoDispBackgroundPage", 0);
+
+            SystemParametersInfo(SPI_SETDESKWALLPAPER, 0, null, SPIF_UPDATEINIFILE | SPIF_SENDCHANGE);
+            RefreshPolicy();
+
             Notify("Change wallpaper has been unlocked");
             LoadStatus();
         }
+
+       
 
         // ── Programs and Features ────────────────────────────────────
         void DisableProgramsAndFeatures()
