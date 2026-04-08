@@ -252,37 +252,49 @@ namespace SystemControlTool
             if (val == null) return 0;
             return (int)val;
         }
+        int GetPolicyLM(string path, string key)
+        {
+            RegistryKey reg = Registry.LocalMachine.OpenSubKey(path);
+            if (reg == null) return 0;
+            object val = reg.GetValue(key);
+            if (val == null) return 0;
+            return (int)val;
+        }
 
+        bool GetPolicyAny(string path, string key)
+        {
+            return GetPolicy(path, key) == 1 || GetPolicyLM(path, key) == 1;
+        }
         void LoadStatus()
         {
             bool regDisabled = IsRegistryDisabled();
-            bool taskDisabled     = GetPolicy(@"Software\Microsoft\Windows\CurrentVersion\Policies\System", "DisableTaskMgr") == 1;
-            bool cmdDisabled      = GetPolicy(@"Software\Policies\Microsoft\Windows\System", "DisableCMD") == 1;
-            bool wallpaperLocked  = GetPolicy(@"Software\Microsoft\Windows\CurrentVersion\Policies\ActiveDesktop", "NoChangingWallPaper") == 1;
+            bool taskDisabled = GetPolicyAny(@"Software\Microsoft\Windows\CurrentVersion\Policies\System", "DisableTaskMgr");
+            bool cmdDisabled = IsCMDDisabled();
+            bool wallpaperLocked = GetPolicyAny(@"Software\Microsoft\Windows\CurrentVersion\Policies\ActiveDesktop", "NoChangingWallPaper");
             bool programsDisabled = IsProgramsAndFeaturesDisabled();
-            bool startMenuDisabled= GetPolicy(@"Software\Policies\Microsoft\Windows\Explorer", "NoUninstallFromStart") == 1;
-            bool runDisabled      = IsWinRDisabled();
-            bool sysDisabled      = IsSystemSettingsDisabled();
-            bool displayDisabled  = IsDisplaySettingsDisabled();
+            bool startMenuDisabled = GetPolicyAny(@"Software\Policies\Microsoft\Windows\Explorer", "NoUninstallFromStart");
+            bool runDisabled = IsWinRDisabled();
+            bool sysDisabled = IsSystemSettingsDisabled();
+            bool displayDisabled = IsDisplaySettingsDisabled();
 
-            SetStatusLabel("Registry",    regDisabled       ? "Disabled" : "Enabled",  regDisabled       ? Color.Red : Color.Green);
-            SetStatusLabel("TaskManager", taskDisabled      ? "Disabled" : "Enabled",  taskDisabled      ? Color.Red : Color.Green);
-            SetStatusLabel("CMD",         cmdDisabled       ? "Disabled" : "Enabled",  cmdDisabled       ? Color.Red : Color.Green);
-            SetStatusLabel("Wallpaper",   wallpaperLocked   ? "Locked"   : "Unlocked", wallpaperLocked   ? Color.Red : Color.Green);
-            SetStatusLabel("Programs",    programsDisabled  ? "Hidden"   : "Visible",  programsDisabled  ? Color.Red : Color.Green);
-            SetStatusLabel("StartMenu",   startMenuDisabled ? "Disabled" : "Enabled",  startMenuDisabled ? Color.Red : Color.Green);
-            SetStatusLabel("Run",         runDisabled       ? "Disabled" : "Enabled",  runDisabled       ? Color.Red : Color.Green);
-            SetStatusLabel("System",      sysDisabled       ? "Disabled" : "Enabled",  sysDisabled       ? Color.Red : Color.Green);
-            SetStatusLabel("Display",     displayDisabled   ? "Disabled" : "Enabled",  displayDisabled   ? Color.Red : Color.Green);
+            SetStatusLabel("Registry", regDisabled ? "Disabled" : "Enabled", regDisabled ? Color.Red : Color.Green);
+            SetStatusLabel("TaskManager", taskDisabled ? "Disabled" : "Enabled", taskDisabled ? Color.Red : Color.Green);
+            SetStatusLabel("CMD", cmdDisabled ? "Disabled" : "Enabled", cmdDisabled ? Color.Red : Color.Green);
+            SetStatusLabel("Wallpaper", wallpaperLocked ? "Locked" : "Unlocked", wallpaperLocked ? Color.Red : Color.Green);
+            SetStatusLabel("Programs", programsDisabled ? "Hidden" : "Visible", programsDisabled ? Color.Red : Color.Green);
+            SetStatusLabel("StartMenu", startMenuDisabled ? "Disabled" : "Enabled", startMenuDisabled ? Color.Red : Color.Green);
+            SetStatusLabel("Run", runDisabled ? "Disabled" : "Enabled", runDisabled ? Color.Red : Color.Green);
+            SetStatusLabel("System", sysDisabled ? "Disabled" : "Enabled", sysDisabled ? Color.Red : Color.Green);
+            SetStatusLabel("Display", displayDisabled ? "Disabled" : "Enabled", displayDisabled ? Color.Red : Color.Green);
 
             SetButtonEnabled("TaskManager", !regDisabled);
-            SetButtonEnabled("CMD",         !regDisabled);
-            SetButtonEnabled("Wallpaper",   !regDisabled);
-            SetButtonEnabled("Programs",    !regDisabled);
-            SetButtonEnabled("StartMenu",   !regDisabled);
-            SetButtonEnabled("Run",         !regDisabled);
-            SetButtonEnabled("System",      !regDisabled);
-            SetButtonEnabled("Display",     !regDisabled);
+            SetButtonEnabled("CMD", !regDisabled);
+            SetButtonEnabled("Wallpaper", !regDisabled);
+            SetButtonEnabled("Programs", !regDisabled);
+            SetButtonEnabled("StartMenu", !regDisabled);
+            SetButtonEnabled("Run", !regDisabled);
+            SetButtonEnabled("System", !regDisabled);
+            SetButtonEnabled("Display", !regDisabled);
         }
 
         private void SetStatusLabel(string key, string text, Color color)
@@ -317,19 +329,14 @@ namespace SystemControlTool
 
         bool IsRegistryDisabled()
         {
-            // Check HKCU
-            if (GetPolicy(@"Software\Microsoft\Windows\CurrentVersion\Policies\System", "DisableRegistryTools") == 1)
-                return true;
-
-            // Check HKLM
-            RegistryKey hklm = Registry.LocalMachine.OpenSubKey(@"Software\Microsoft\Windows\CurrentVersion\Policies\System");
-            if (hklm != null)
-            {
-                object val = hklm.GetValue("DisableRegistryTools");
-                if (val != null && (int)val == 1)
-                    return true;
-            }
-
+            // Path thông thường HKCU
+            if (GetPolicy(@"Software\Microsoft\Windows\CurrentVersion\Policies\System", "DisableRegistryTools") == 1) return true;
+            // Path thông thường HKLM
+            if (GetPolicyLM(@"Software\Microsoft\Windows\CurrentVersion\Policies\System", "DisableRegistryTools") == 1) return true;
+            // Path Group Policy HKCU (gpedit ghi vào đây)
+            if (GetPolicy(@"Software\Policies\Microsoft\Windows\System", "DisableRegistryTools") == 1) return true;
+            // Path Group Policy HKLM
+            if (GetPolicyLM(@"Software\Policies\Microsoft\Windows\System", "DisableRegistryTools") == 1) return true;
             return false;
         }
 
@@ -367,16 +374,33 @@ namespace SystemControlTool
             LoadStatus();
         }
 
+        bool IsCMDDisabled()
+        {
+            // Path thông thường HKCU
+            if (GetPolicy(@"Software\Policies\Microsoft\Windows\System", "DisableCMD") == 1) return true;
+            // Path thông thường HKLM
+            if (GetPolicyLM(@"Software\Policies\Microsoft\Windows\System", "DisableCMD") == 1) return true;
+            // Path Group Policy HKCU (gpedit ghi vào đây)
+            if (GetPolicy(@"Software\Microsoft\Windows\CurrentVersion\Policies\System", "DisableCMD") == 1) return true;
+            // Path Group Policy HKLM
+            if (GetPolicyLM(@"Software\Microsoft\Windows\CurrentVersion\Policies\System", "DisableCMD") == 1) return true;
+            return false;
+        }
+
         // ── Wallpaper ────────────────────────────────────────────────
         private void btnLockWallpaper_Click(object sender, EventArgs e)
         {
             if (IsRegistryDisabled()) { Notify("Registry đang bị khóa."); return; }
 
+            // HKCU
             SetPolicy(@"Software\Microsoft\Windows\CurrentVersion\Policies\ActiveDesktop", "NoChangingWallPaper", 1);
             SetPolicy(@"Software\Microsoft\Windows\CurrentVersion\Policies\Explorer", "NoSetWallpaper", 1);
             SetPolicy(@"Software\Microsoft\Windows\CurrentVersion\Policies\System", "NoDispBackgroundPage", 1);
 
-            // Notify Windows apply ngay không cần restart Explorer
+            // HKLM - cần cho Win 10 LTSB
+            SetPolicyLM(@"Software\Microsoft\Windows\CurrentVersion\Policies\ActiveDesktop", "NoChangingWallPaper", 1);
+            SetPolicyLM(@"Software\Microsoft\Windows\CurrentVersion\Policies\System", "NoDispBackgroundPage", 1);
+
             SystemParametersInfo(SPI_SETDESKWALLPAPER, 0, null, SPIF_UPDATEINIFILE | SPIF_SENDCHANGE);
             RefreshPolicy();
 
@@ -388,9 +412,14 @@ namespace SystemControlTool
         {
             if (IsRegistryDisabled()) { Notify("Registry đang bị khóa."); return; }
 
+            // HKCU
             SetPolicy(@"Software\Microsoft\Windows\CurrentVersion\Policies\ActiveDesktop", "NoChangingWallPaper", 0);
             SetPolicy(@"Software\Microsoft\Windows\CurrentVersion\Policies\Explorer", "NoSetWallpaper", 0);
             SetPolicy(@"Software\Microsoft\Windows\CurrentVersion\Policies\System", "NoDispBackgroundPage", 0);
+
+            // HKLM - cần cho Win 10 LTSB
+            SetPolicyLM(@"Software\Microsoft\Windows\CurrentVersion\Policies\ActiveDesktop", "NoChangingWallPaper", 0);
+            SetPolicyLM(@"Software\Microsoft\Windows\CurrentVersion\Policies\System", "NoDispBackgroundPage", 0);
 
             SystemParametersInfo(SPI_SETDESKWALLPAPER, 0, null, SPIF_UPDATEINIFILE | SPIF_SENDCHANGE);
             RefreshPolicy();
@@ -399,7 +428,22 @@ namespace SystemControlTool
             LoadStatus();
         }
 
-       
+        // Thêm hàm set HKLM
+        void SetPolicyLM(string path, string key, int value)
+        {
+            try
+            {
+                RegistryKey reg = Registry.LocalMachine.CreateSubKey(path);
+                if (reg != null)
+                {
+                    reg.SetValue(key, value, RegistryValueKind.DWord);
+                    reg.Close();
+                }
+            }
+            catch { }
+        }
+
+
 
         // ── Programs and Features ────────────────────────────────────
         void DisableProgramsAndFeatures()
@@ -416,10 +460,7 @@ namespace SystemControlTool
 
         bool IsProgramsAndFeaturesDisabled()
         {
-            RegistryKey key = Registry.CurrentUser.OpenSubKey(@"Software\Microsoft\Windows\CurrentVersion\Policies\Programs");
-            if (key == null) return false;
-            object val = key.GetValue("NoProgramsAndFeatures");
-            return val != null && (int)val == 1;
+            return GetPolicyAny(@"Software\Microsoft\Windows\CurrentVersion\Policies\Programs", "NoProgramsAndFeatures");
         }
 
         private void btnHidePrograms_Click(object sender, EventArgs e)
@@ -480,10 +521,7 @@ namespace SystemControlTool
 
         bool IsWinRDisabled()
         {
-            RegistryKey key = Registry.CurrentUser.OpenSubKey(@"Software\Microsoft\Windows\CurrentVersion\Policies\Explorer");
-            if (key == null) return false;
-            object val = key.GetValue("NoRun");
-            return val != null && (int)val == 1;
+            return GetPolicyAny(@"Software\Microsoft\Windows\CurrentVersion\Policies\Explorer", "NoRun");
         }
 
         private void btnDisableRun_Click(object sender, EventArgs e)
@@ -516,10 +554,12 @@ namespace SystemControlTool
 
         bool IsSystemSettingsDisabled()
         {
-            RegistryKey key = Registry.CurrentUser.OpenSubKey(@"Software\Microsoft\Windows\CurrentVersion\Policies\Explorer");
-            if (key == null) return false;
-            object val = key.GetValue("NoControlPanel");
-            return val != null && (int)val == 1;
+            if (GetPolicy(@"Software\Microsoft\Windows\CurrentVersion\Policies\Explorer", "NoControlPanel") == 1) return true;
+            if (GetPolicyLM(@"Software\Microsoft\Windows\CurrentVersion\Policies\Explorer", "NoControlPanel") == 1) return true;
+            // Check thêm key RestrictCpl
+            if (GetPolicyLM(@"Software\Microsoft\Windows\CurrentVersion\Policies\Explorer", "RestrictCpl") == 1) return true;
+            if (GetPolicyLM(@"Software\Policies\Microsoft\Windows\System", "NoControlPanel") == 1) return true;
+            return false;
         }
 
         private void btnDisableSystem_Click(object sender, EventArgs e)
@@ -552,10 +592,11 @@ namespace SystemControlTool
 
         bool IsDisplaySettingsDisabled()
         {
-            RegistryKey key = Registry.CurrentUser.OpenSubKey(@"Software\Microsoft\Windows\CurrentVersion\Policies\System");
-            if (key == null) return false;
-            object val = key.GetValue("NoDispCPL");
-            return val != null && (int)val == 1;
+            if (GetPolicy(@"Software\Microsoft\Windows\CurrentVersion\Policies\System", "NoDispCPL") == 1) return true;
+            if (GetPolicyLM(@"Software\Microsoft\Windows\CurrentVersion\Policies\System", "NoDispCPL") == 1) return true;
+            // Check thêm path khác
+            if (GetPolicyLM(@"Software\Microsoft\Windows\CurrentVersion\Policies\Explorer", "NoDispCPL") == 1) return true;
+            return false;
         }
 
         private void btnDisableDisplay_Click(object sender, EventArgs e)
